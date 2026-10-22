@@ -1,0 +1,354 @@
+---
+title: "FRED Homework"
+author: "Yiting Pei"
+date: "2026-10-19"
+geometry: margin=0.85in
+output:
+  pdf_document: default
+  html_document: default
+editor_options:
+  markdown:
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(fredr)
+library(ggplot2)
+
+fredr_set_key(Sys.getenv("FRED_API_KEY"))
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax
+for authoring HTML, PDF, and MS Word documents. For more details on
+using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that
+includes both content as well as the output of any embedded R code
+chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to
+prevent printing of the R code that generated the plot.
+
+You can learn more about using R markdown files here
+<https://rmarkdown.rstudio.com/lesson-3.html>
+
+## Background
+
+The St Louis branch of the Federal Reserve System maintains an extensive
+database of U.S. economic data that is available to the public.
+Economists, business, and financial institutions rely on the Federal
+Reserve Economic Data (FRED) database to guide their organizations’
+behaviors.
+
+## Objective
+
+In module 3 we introduced the R programming language. We learned the
+general R syntax and how to create user defined functions that process
+strings, integers, and matrices. In module 4, we practiced using an R
+package called tidyverse to perform data analysis and visualization.
+Tidyverse is just one of many R packages that serve to multiply the
+analytical power of the language. In this activity, we will build on the
+progress of previous weeks to analyze data from the Federal Reserve
+Economic Data (FRED) database. A variety of open source packages have
+been developed to connect the FRED database to Application Programming
+Interfaces (APIs). In particular, we will use a package called fredr
+(lower case) to access FRED data in the RStudio API. Then we will use
+the skills learned in class to analyze and visualize the data. There are
+other tools for accessing FRED data, but RStudio is perhaps the most
+powerful.
+
+## Connecting to FRED in RStudio
+
+There are several required steps to connect RStudio API to the FRED
+database. Start early so you can work through the steps. Ask the
+instructor, your teammates, or schedule office hours if you need
+assistance.
+
+1.  Install the fredr package to your RStudio library. You can do this
+    in one of three ways. Option a is typically the easiest.
+    a.  Search fredr in the CRAN repository If prompted, you may need to
+        install dependency packages or update to a recent version of R.
+
+    b.  If you have already installed the popular devtools package, you
+        can conveniently use the command
+        `devtools::install_github("sboysel/fredr”)` If prompted, you may
+        need to install dependency packages or update to a recent
+        version of R.
+
+    c.  The brute force, and failsafe way to install a package to
+        RStudio is to save the files to your computer, then install them
+        to you library by browsing for them in RStudio. Use the default
+        path for “Install to Library” option.
+2.  Open the fredr package, and other required packages from your
+    library. If you have not already installed tidyverse and ggplot2,
+    simply follow the instructions for step 1. `library(fredr)`
+    `library(tidyverse)` `library(ggplot2)`
+
+Using the provided directions, edit the following code to connect to
+FRED
+
+```{r include = FALSE}
+#Install devtools and tidyverse from CRAN if needed
+#install.packages("devtools")
+#install.packages("tidyverse")
+
+
+
+#Open devtools package to help install fredr from github
+# library(devtools)
+#Open tidyverse set of packages for analysis
+# library(tidyverse)
+
+#Install fredr from github
+#devtools::install_github("sboysel/fredr")
+
+#Open the newly install fredr package
+library(fredr)
+
+```
+
+3.  Create an account on FRED using this url:
+    <https://fredhelp.stlouisfed.org/fred/account/fred-account-features/register/>
+
+4.  Create a unique key. After creating your account, you will need a
+    unique key to access the database via RStudio. You can request a new
+    key, or view your existing keys at this url:
+    <https://fredaccount.stlouisfed.org/apikeys>
+
+5.  Request the data connection using your key.
+    `fredr_set_key("paste_my_key_here")` Use this url for more
+    information: <https://fred.stlouisfed.org/docs/api/api_key.html> Use
+    this url for more information:
+    <https://fred.stlouisfed.org/docs/api/api_key.html>
+
+```{r include = FALSE}
+#fredr_set_key("paste_my_key_here")
+
+```
+
+## Search for Data
+
+The documentation for using fredr can be found at this url:
+<https://github.com/sboysel/fredr> Notice that the page is a github
+repository. The contents of README.md are shown as the landing page.
+
+We now wish to search for the series ID of relevant data sets. You may
+find these online or search for them with fredr. Here we search for the
+top 5 data set related to the federal funds rate.
+
+```{r}
+popular_funds_series <- fredr_series_search_text(
+  search_text = "federal funds",
+  order_by = "popularity",
+  sort_order = "desc",
+  limit = 5
+)
+
+#print the search results
+string_of_results<-paste(c( popular_funds_series$id), collapse=', ' )
+print(paste(c("The top series id are: ", string_of_results)))
+
+
+```
+
+Save the series_id of the #1 result as a variable for later use. We also
+save the FFR data as variable for inspection
+
+```{r}
+popular_funds_series_id <- popular_funds_series$id[1]
+
+FFR_data <- fredr(
+  series_id = "FEDFUNDS",
+  observation_start = as.Date("2006-10-01"),
+  observation_end = Sys.Date()
+)
+
+print(FFR_data)
+
+```
+
+Now we want to plot our top result, which should have the series ID
+"FEDFUNDS". We can exploit a trick called the pipe operator, which is
+included in tidyverse.
+
+The pipe operator, %\>% is a clean way to pass an object into a
+function. Here we pass the contents of popular_funds_series_id into the
+`fredr()` function, and we pass the output of `fredr()` to ggplot.
+
+```{r}
+ggplot(FFR_data, aes(x = date, y = value)) +
+  geom_line(color = "steelblue", linewidth = 1) +
+  labs(
+    title = "Federal Funds Rate (2006–2026)",
+    x = "Year",
+    y = "Federal Funds Rate (%)"
+  ) +
+  theme_minimal()
+```
+
+Use this example to guide your responses to analysis tasks 1-6. Be sure
+that all plots are well formatted with titles, axis titles, and legends,
+as applicable. Submit your r markdown file as well as a pdf of the
+markdown file that shows all of your plots.
+
+## Analysis Tasks
+
+You are a financial analyst at a bank that sells mortgages on the
+primary market. Your manager wants to understand how historical data can
+serve as an indicator of the federal funds rate (FFR). The FFR is one of
+several factors that drive the prime rate for home mortgages.
+
+1)  Plot the FFR for the past 20 years. Update dates in template as needed (1-6).
+```{r}
+ggplot(FFR_data, aes(x = date, y = value)) +
+  geom_line() +
+  labs(
+    title = "Federal Funds Rate (2006–2026)",
+    x = "Year",
+    y = "Federal Funds Rate (%)"
+  ) +
+  scale_x_date(date_breaks = "4 years", date_labels = "%Y") +
+theme_minimal() +
+theme(panel.grid.minor.x = element_blank())
+```
+
+2)  Plot the 10-year treasury bond rate for the past 20 years
+```{r}
+Treasury_data <- fredr(
+  series_id = "DGS10",
+  observation_start = as.Date("2006-10-01"),
+  observation_end = Sys.Date()
+)
+
+ggplot(Treasury_data, aes(x = date, y = value)) +
+  geom_line(na.rm = TRUE) +
+  labs(
+    title = "10-Year Treasury Yield (2006–2026)",
+    x = "Year",
+    y = "Treasury Yield (%)"
+  ) +
+  scale_x_date(date_breaks = "4 years", date_labels = "%Y") +
+theme_minimal() +
+theme(panel.grid.minor.x = element_blank())
+```
+
+3)  Plot the inflation rate for the past 20 years
+```{r}
+Inflation_data <- fredr(
+  series_id = "CPIAUCSL",
+  observation_start = as.Date("2006-10-01"),
+  observation_end = Sys.Date(),
+  units = "pc1"
+)
+
+ggplot(Inflation_data, aes(x = date, y = value)) +
+  geom_line() +
+  labs(
+    title = "Inflation Rate (2006–2026)",
+    x = "Year",
+    y = "Inflation Rate (%)"
+  ) +
+  scale_x_date(date_breaks = "4 years", date_labels = "%Y") +
+  theme_minimal() +
+  theme(panel.grid.minor.x = element_blank())
+```
+
+4)  Plot the unemployment rate for the past 20 years
+```{r}
+Unemployment_data <- fredr(
+  series_id = "UNRATE",
+  observation_start = as.Date("2006-10-01"),
+  observation_end = Sys.Date()
+)
+
+ggplot(Unemployment_data, aes(x = date, y = value)) +
+  geom_line() +
+  labs(
+    title = "Unemployment Rate (2006–2026)",
+    x = "Year",
+    y = "Unemployment Rate (%)"
+  ) +
+  scale_x_date(date_breaks = "4 years", date_labels = "%Y") +
+theme_minimal() +
+theme(panel.grid.minor.x = element_blank())
+```
+
+5)  Provide a timeline that indicates U.S. recessions over the past 20
+    years
+```{r}
+Recession_data <- fredr(
+  series_id = "USREC",
+  observation_start = as.Date("2006-10-01"),
+  observation_end = Sys.Date()
+)
+
+ggplot(Recession_data, aes(x = date, y = value)) +
+  geom_step() +
+  labs(
+    title = "U.S. Recessions (2006–2026)",
+    x = "Year",
+    y = "Recession (1 = Yes, 0 = No)"
+  ) +
+  scale_x_date(date_breaks = "4 years", date_labels = "%Y") +
+theme_minimal() +
+theme(panel.grid.minor.x = element_blank())
+```
+
+6)  Combine any interesting aspects of the above information to a single
+    plot. We will call this plot the “money-plot.” Explain why you
+    crafted the money-plot as you did. Use the money-plot to provide
+    analysis the mortgage market. Now your manager asks you for a
+    prediction of the FFR and the mortgage market. Its not possible to
+    know the future, but make a well reasoned educated guess from the
+    data you have plotted.
+```{r}
+ggplot() +
+  geom_line(
+    data = FFR_data,
+    aes(x = date, y = value, color = "Federal Funds Rate")
+  ) +
+  geom_line(
+    data = Treasury_data,
+    aes(x = date, y = value, color = "10-Year Treasury Yield"),
+    na.rm = TRUE
+  ) +
+  labs(
+    title = "Federal Funds Rate vs. 10-Year Treasury Yield (2006–2026)",
+    x = "Year",
+    y = "Interest Rate (%)",
+    color = "Series"
+  ) +
+  scale_x_date(date_breaks = "4 years", date_labels = "%Y") +
+theme_minimal() +
+theme(panel.grid.minor.x = element_blank())
+```
+
+Money Plot Analysis
+
+Why I Chose This Plot
+I chose to compare the Federal Funds Rate (FFR) and the 10-Year Treasury Yield because both are important to the mortgage market. The FFR is a short-term interest rate, while the 10-Year Treasury Yield reflects longer-term interest rates. Mortgage rates are usually more closely related to long-term Treasury yields. By putting these two rates on the same graph, I can compare their changes over the past 20 years and better understand how interest rates affect the mortgage market.
+
+Mortgage Market Analysis
+The graph shows several important changes. During the 2008 financial crisis, the FFR dropped sharply and stayed close to zero for several years. The 10-Year Treasury Yield also decreased, but it remained higher than the FFR. Around 2020, both rates were very low because of the economic conditions during the COVID-19 pandemic. After 2021, both rates increased as inflation became a major concern. The FFR rose quickly, while the 10-Year Treasury Yield also moved higher.
+
+These changes are important for the mortgage market. When Treasury yields increase, mortgage rates often increase as well. Higher mortgage rates mean higher monthly payments for homebuyers. This can make homes less affordable and reduce demand for new mortgages. For a bank that sells mortgages, this may mean fewer loan applications. Near the end of the graph, the FFR has decreased, but the 10-Year Treasury Yield remains relatively high. This shows that lower short-term interest rates do not always lead to lower mortgage rates right away. For a mortgage lender, fewer loan applications may mean less income from new loans. If mortgage rates fall in the future, more people may apply for mortgages or refinance their existing loans, which could create more business opportunities for the bank.
+
+Prediction
+Based on the graph, I think the FFR may decrease slowly over the next year if inflation continues to fall. However, if inflation stays high, the Federal Reserve may keep interest rates higher for longer. I also expect mortgage rates to remain relatively high in the near future because the 10-Year Treasury Yield is still elevated.
+
+If Treasury yields eventually decrease, mortgage rates may also fall, making homes more affordable and encouraging more people to apply for mortgages. However, the timing is uncertain. Inflation, unemployment, and future Federal Reserve decisions will all affect what happens next. The graph helps explain past interest rate changes, but it cannot tell us exactly what will happen in the future.
